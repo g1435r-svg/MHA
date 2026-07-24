@@ -22,18 +22,21 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+          cache-dependency-path: maaser-chomesh-upload/package-lock.json
 
       - name: Install dependencies
+        working-directory: maaser-chomesh-upload
         run: npm ci
 
       - name: Build portable EXE
+        working-directory: maaser-chomesh-upload
         run: npm run build:exe
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
           name: maaser-chomesh-exe
-          path: dist/*.exe
+          path: maaser-chomesh-upload/dist/*.exe
           if-no-files-found: error
 
       - name: Create release tag
@@ -46,5 +49,5 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.tag_name }}
           name: EXE Build ${{ github.run_number }}
-          files: dist/*.exe
+          files: maaser-chomesh-upload/dist/*.exe
           generate_release_notes: true
