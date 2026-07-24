@@ -1,44 +1,45 @@
 name: Build Windows EXE
 
 on:
-workflow_dispatch:
-push:
-branches:
-- main
-- master
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
 jobs:
-build-windows-exe:
-runs-on: windows-latest
-defaults:
-run:
-working-directory: maaser-chomesh-upload
+  build-windows-exe:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: maaser-chomesh-upload
 
-steps:
-- name: Checkout repository
-uses: actions/checkout@v5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
-- name: Setup Node.js
-uses: actions/setup-node@v5
-with:
-node-version: "22"
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
 
-- name: Verify project folder
-shell: pwsh
-run: |
-node -v
-npm -v
-if (!(Test-Path "package.json")) { throw "package.json not found in maaser-chomesh-upload" }
-Get-ChildItem
+      - name: Verify project folder
+        shell: pwsh
+        run: |
+          node -v
+          npm -v
+          if (!(Test-Path "package.json")) { throw "package.json not found in maaser-chomesh-upload" }
+          Get-ChildItem
 
-- name: Install dependencies
-run: npm install --no-audit --no-fund
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
 
-- name: Build portable EXE
-run: npm run build:exe
+      - name: Build portable EXE
+        run: npm run build:exe
 
-- name: Upload EXE artifact
-uses: actions/upload-artifact@v4
-with:
-name: maaser-chomesh-exe
-path: maaser-chomesh-upload/dist/*.exe
-if-no-files-found: error
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: maaser-chomesh-exe
+          path: maaser-chomesh-upload/dist/*.exe
+          if-no-files-found: error
