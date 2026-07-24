@@ -28,7 +28,7 @@ jobs:
         run: |
           node -v
           npm -v
-          if (!(Test-Path [package.json](http://_vscodecontentref_/1))) { throw "package.json not found in maaser-chomesh-upload" }
+          if (!(Test-Path "package.json")) { throw "package.json not found in maaser-chomesh-upload" }
           Get-ChildItem
 
       - name: Install dependencies
