@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>מחשבון מעשרות וחומש</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <h1>ניהול מעשרות וחומש</h1>
+        <p>הכנסות, תרומות, יתרה להפרשה, ודוחות חכמים</p>
+      </div>
+      <div class="actions-inline">
+        <button id="undo-btn" class="btn" type="button">בטל פעולה</button>
+        <button id="redo-btn" class="btn" type="button">שחזר פעולה</button>
+        <button id="export-btn" class="btn">גיבוי JSON</button>
+        <label class="btn file-label">
+          ייבוא גיבוי
+          <input id="import-input" type="file" accept="application/json" hidden />
+        </label>
+        <button id="export-csv-btn" class="btn">ייצוא CSV</button>
+        <button id="export-xlsx-btn" class="btn">ייצוא XLSX</button>
+      </div>
+    </header>
+
+    <nav class="top-sections-nav" aria-label="ניווט ראשי">
+      <button id="top-tab-main" class="top-tab-btn active" data-top-tab="main" type="button">ניהול ודו"חות</button>
+      <button id="top-tab-import" class="top-tab-btn" data-top-tab="import" type="button">ייבוא אקסל</button>
+    </nav>
+    <div id="app-notice" class="app-notice hidden" role="status" aria-live="polite"></div>
+
+    <main class="layout">
+      <section id="top-panel-main" class="top-panel">
+      <section class="card summary-card">
+        <h2>תמונה כללית</h2>
+        <div class="stats-grid">
+          <article><h3>סה"כ הכנסות</h3><p id="total-income">₪0.00</p></article>
+          <article><h3>חובת מעשר (10%)</h3><p id="maaser-target">₪0.00</p></article>
+          <article><h3>חובת חומש (20%)</h3><p id="chomesh-target">₪0.00</p></article>
+          <article><h3>סה"כ תרומות</h3><p id="total-donations">₪0.00</p></article>
+          <article><h3>נותר למעשר</h3><p id="remaining-maaser">₪0.00</p></article>
+          <article><h3>נותר לחומש</h3><p id="remaining-chomesh">₪0.00</p></article>
+        </div>
+      </section>
+
+      <section class="card form-card">
+        <h2>רישום / עריכת פעולה</h2>
+        <form id="entry-form">
+          <input type="hidden" id="editing-id" />
+          <div class="grid">
+            <label>
+              סוג פעולה
+              <select id="type" required>
+                <option value="income">הכנסה</option>
+                <option value="donation">תרומה</option>
+              </select>
+            </label>
+            <label>
+              תאריך
+              <input type="date" id="date" required />
+            </label>
+            <label>
+              תאריך עברי (אוטומטי)
+              <input type="text" id="hebrew-date" readonly />
+            </label>
+            <label>
+              תיאור
+              <input type="text" id="description" placeholder="למשל: משכורת / זיכוי אשראי" required />
+            </label>
+            <label>
+              סכום
+              <input type="number" id="amount" step="0.01" placeholder="אפשר גם שלילי בהכנסה" required />
+            </label>
+            <label id="recipient-wrap" class="hidden">
+              מקבל תרומה (אופציונלי)
+              <input type="text" id="recipient" placeholder="למי נתרם" />
+            </label>
+            <label>
+              הערות
+              <input type="text" id="notes" placeholder="הערה אופציונלית" />
+            </label>
+          </div>
+          <div class="form-actions">
+            <button id="save-btn" type="submit" class="btn primary">שמור פעולה</button>
+            <button id="cancel-edit-btn" type="button" class="btn hidden">ביטול עריכה</button>
+            <button id="clear-btn" type="button" class="btn danger">ניקוי נתונים</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card reports-card">
+        <div class="report-head">
+          <h2>דוח חודשי / שנתי</h2>
+          <div class="report-tools">
+            <label>
+              שנה
+              <select id="report-year"></select>
+            </label>
+            <label>
+              סוג דוח
+              <select id="report-mode">
+                <option value="monthly">חודשי</option>
+                <option value="yearly">שנתי</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <canvas id="report-chart" height="120"></canvas>
+      </section>
+
+      <section class="card tabs-card">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="all">כל הרשומות</button>
+          <button class="tab-btn" data-tab="income">הכנסות</button>
+          <button class="tab-btn" data-tab="donation">תרומות</button>
+        </div>
+
+        <div class="tab-panel" id="panel-all">
+          <h3>כל הרשומות (כולל סינונים)</h3>
+          <div class="filters table-actions-sticky">
+            <label>
+              חיפוש
+              <input id="search" type="search" placeholder="תיאור / הערות / מקבל" />
+            </label>
+            <label>
+              שנה
+              <select id="filter-year">
+                <option value="">כל השנים</option>
+              </select>
+            </label>
+            <label>
+              מתאריך
+              <input id="from-date" type="date" />
+            </label>
+            <label>
+              עד תאריך
+              <input id="to-date" type="date" />
+            </label>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>סוג</th>
+                  <th>תאריך</th>
+                  <th>תאריך עברי</th>
+                  <th>תיאור</th>
+                  <th>סכום</th>
+                  <th>מקבל</th>
+                  <th>הערות</th>
+                  <th>פעולות</th>
+                </tr>
+              </thead>
+              <tbody id="entries-body-all"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-panel hidden" id="panel-income">
+          <h3>הכנסות בלבד</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>סוג</th>
+                  <th>תאריך</th>
+                  <th>תאריך עברי</th>
+                  <th>תיאור</th>
+                  <th>סכום</th>
+                  <th>מקבל</th>
+                  <th>הערות</th>
+                  <th>פעולות</th>
+                </tr>
+              </thead>
+              <tbody id="entries-body-income"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-panel hidden" id="panel-donation">
+          <h3>תרומות בלבד</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>סוג</th>
+                  <th>תאריך</th>
+                  <th>תאריך עברי</th>
+                  <th>תיאור</th>
+                  <th>סכום</th>
+                  <th>מקבל</th>
+                  <th>הערות</th>
+                  <th>פעולות</th>
+                </tr>
+              </thead>
+              <tbody id="entries-body-donation"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      </section>
+
+      <section id="top-panel-import" class="top-panel hidden">
+      <section class="card import-card">
+        <h2>ייבוא מאקסל (בנק / אשראי)</h2>
+        <div class="import-steps" id="import-steps" aria-label="שלבי ייבוא">
+          <div class="import-step active" data-step="1">1. קובץ</div>
+          <div class="import-step" data-step="2">2. מיפוי</div>
+          <div class="import-step" data-step="3">3. סינון</div>
+          <div class="import-step" data-step="4">4. אישור</div>
+        </div>
+        <p class="hint">תוכל לבחור סוג פעולה, תאריך אחיד לכל הרשומות, מיפוי טורים, ושורות ספציפיות לייבוא.</p>
+        <div class="import-top">
+          <label class="btn file-label">
+            בחר קובץ Excel
+            <input id="excel-input" type="file" accept=".xlsx,.xls,.csv" hidden />
+          </label>
+          <label>
+            גליון (Sheet)
+            <select id="excel-sheet"></select>
+          </label>
+          <label>
+            סוג פעולה לייבוא
+            <select id="excel-type">
+              <option value="income">הכנסות (למשל בנק)</option>
+              <option value="donation">תרומות (למשל אשראי)</option>
+            </select>
+          </label>
+          <label>
+            נרמול סימן סכום
+            <select id="excel-amount-mode">
+              <option value="auto">אוטומטי לפי סוג</option>
+              <option value="as-is">כמו בקובץ</option>
+              <option value="abs">תמיד חיובי</option>
+              <option value="flip">היפוך סימן</option>
+            </select>
+          </label>
+          <label>
+            שורת כותרת ראשונה
+            <select id="excel-has-header">
+              <option value="yes">כן</option>
+              <option value="no">לא</option>
+            </select>
+          </label>
+          <label>
+            תאריך אחיד לכל הייבוא (אופציונלי)
+            <input id="excel-fixed-date" type="date" />
+          </label>
+          <label>
+            שורת התחלה (דלג על שורות ראשונות)
+            <input id="excel-start-row" type="number" min="1" value="1" />
+          </label>
+        </div>
+        <div id="excel-mapper" class="hidden">
+          <div class="profile-bar">
+            <label>
+              שם תבנית מיפוי
+              <input id="profile-name" type="text" placeholder="למשל: בנק לאומי הכנסות" />
+            </label>
+            <button id="save-profile-btn" class="btn" type="button">שמור תבנית</button>
+            <label>
+              תבניות שמורות
+              <select id="profile-select"></select>
+            </label>
+            <button id="load-profile-btn" class="btn" type="button">טען תבנית</button>
+            <button id="delete-profile-btn" class="btn danger" type="button">מחק תבנית</button>
+            <button id="set-default-profile-btn" class="btn" type="button">קבע כברירת מחדל</button>
+            <button id="clear-default-profile-btn" class="btn" type="button">נקה ברירת מחדל</button>
+            <label>
+              זיהוי אוטומטי לפי שם קובץ
+              <select id="auto-profile-mode">
+                <option value="on">פעיל</option>
+                <option value="off">כבוי</option>
+              </select>
+            </label>
+            <button id="export-profiles-btn" class="btn" type="button">ייצוא תבניות JSON</button>
+            <label class="btn file-label">
+              ייבוא תבניות JSON
+              <input id="import-profiles-input" type="file" accept="application/json" hidden />
+            </label>
+          </div>
+          <div class="mapper-grid">
+            <label>טור תיאור<select id="map-description"></select></label>
+            <label>טור סכום<select id="map-amount"></select></label>
+            <label>טור תאריך<select id="map-date"></select></label>
+            <label>טור הערות<select id="map-notes"></select></label>
+            <label>טור מקבל (לתרומות)<select id="map-recipient"></select></label>
+            <label>שורות לייבוא<select id="excel-row-mode"><option value="all">כל השורות</option><option value="selected">בחירת שורות ידנית</option></select></label>
+            <label>
+              חיפוש בתוך הייבוא
+              <input id="excel-import-search" type="search" placeholder="חיפוש לפי תיאור / סכום / תאריך" />
+            </label>
+            <div class="inline-actions">
+              <button id="select-all-rows-btn" class="btn" type="button">בחר הכל</button>
+              <button id="clear-all-rows-btn" class="btn" type="button">בטל הכל</button>
+            </div>
+            <div id="selected-rows-counter" class="selected-rows-counter">נבחרו 0 שורות</div>
+            <button id="auto-map-btn" class="btn" type="button">אתחול מיפוי אוטומטי</button>
+          </div>
+          <div id="excel-raw-preview" class="preview-wrap" style="display:none;"></div>
+          <div id="excel-parsed-preview" class="preview-wrap"></div>
+          <div id="excel-legacy-preview" class="preview-wrap" style="display:none;"></div>
+          <div class="import-actions">
+            <button id="quick-import-btn" class="btn" type="button">ייבוא מהיר (תבנית ברירת מחדל)</button>
+            <button id="import-excel-btn" class="btn primary" type="button">ייבוא השורות שנבחרו</button>
+          </div>
+        </div>
+      </section>
+      </section>
+    </main>
+
+    <template id="row-template">
+      <tr>
+        <td data-k="type"></td>
+        <td data-k="date"></td>
+        <td data-k="hebrewDate"></td>
+        <td data-k="description"></td>
+        <td data-k="amount"></td>
+        <td data-k="recipient"></td>
+        <td data-k="notes"></td>
+        <td class="inline-actions">
+          <button data-action="edit" class="btn small">ערוך</button>
+          <button data-action="delete" class="btn small danger">מחק</button>
+        </td>
+      </tr>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

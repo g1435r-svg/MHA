@@ -1,0 +1,29 @@
+{
+  "name": "maaser-chomesh-app",
+  "version": "1.0.0",
+  "description": "מחשבון מעשרות וחומש עם גיבוי",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:exe": "electron-builder --win --x64 portable"
+  },
+  "devDependencies": {
+    "electron": "^31.2.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.local.maaserchomesh",
+    "productName": "MaaserChomesh",
+    "files": [
+      "index.html",
+      "styles.css",
+      "app.js",
+      "electron-main.js"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ]
+    }
+  }
+}
