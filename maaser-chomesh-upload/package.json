@@ -5,7 +5,7 @@
   "main": "electron-main.js",
   "scripts": {
     "start": "electron .",
-    "build:exe": "electron-builder --win --x64 portable"
+    "build:exe": "electron-builder --win --x64"
   },
   "devDependencies": {
     "electron": "^31.2.1",
