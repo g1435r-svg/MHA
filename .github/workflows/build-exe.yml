@@ -16,12 +16,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "22"
+
+      - name: Verify project folder
+        run: |
+          node -v
+          npm -v
+          if (!(Test-Path package.json)) { throw "package.json not found in maaser-chomesh-upload" }
+          Get-ChildItem
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
